@@ -1,0 +1,139 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum UserRole { customer merchant courier admin }
+enum OrderStatus { received accepted preparing ready assigned pickup on_way delivered rejected canceled }
+enum CourierStatus { offline online busy }
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String?
+  role       UserRole @default(customer)
+  fullName   String?
+  phone      String?
+  createdAt  DateTime @default(now())
+  merchants  Merchant[]
+  courier    Courier?
+  orders     Order[]
+}
+
+model Merchant {
+  id                String       @id @default(cuid())
+  ownerId           String
+  owner             User         @relation(fields: [ownerId], references: [id])
+  name              String
+  address           String?
+  lat               Float?
+  lng               Float?
+  serviceRadiusKm   Float        @default(5)
+  deliveryFeeMode   String       @default("flat") // flat | per_km
+  deliveryFeeNumeric Float       @default(1000)
+  isOpen            Boolean      @default(true)
+  opensAt           DateTime?
+  closesAt          DateTime?
+  createdAt         DateTime     @default(now())
+  categories        MenuCategory[]
+  items             MenuItem[]
+  orders            Order[]
+  payoutReports     PayoutReport[]
+}
+
+model MenuCategory {
+  id          String    @id @default(cuid())
+  merchantId  String
+  merchant    Merchant  @relation(fields: [merchantId], references: [id])
+  name        String
+  sortOrder   Int       @default(0)
+  items       MenuItem[]
+}
+
+model MenuItem {
+  id          String    @id @default(cuid())
+  merchantId  String
+  merchant    Merchant  @relation(fields: [merchantId], references: [id])
+  categoryId  String?
+  category    MenuCategory? @relation(fields: [categoryId], references: [id])
+  name        String
+  description String?
+  price       Float
+  imageUrl    String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+}
+
+model Order {
+  id            String       @id @default(cuid())
+  merchantId    String
+  merchant      Merchant     @relation(fields: [merchantId], references: [id])
+  customerId    String?
+  customer      User?        @relation(fields: [customerId], references: [id])
+  status        OrderStatus  @default(received)
+  paymentMethod String?
+  notes         String?
+  deliveryAddress String?
+  deliveryLat   Float?
+  deliveryLng   Float?
+  etaMinutes    Int?
+  deliveryPrice Float?
+  itemsTotal    Float?
+  grandTotal    Float?
+  createdAt     DateTime     @default(now())
+  items         OrderItem[]
+  delivery      Delivery?
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id])
+  itemId        String?
+  nameSnapshot  String
+  unitPrice     Float
+  quantity      Int
+  subtotal      Float
+}
+
+model Courier {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  status    CourierStatus @default(offline)
+  vehicle   String   @default("moto")
+  locations CourierLocation[]
+  deliveries Delivery[]
+}
+
+model Delivery {
+  id            String  @id @default(cuid())
+  orderId       String  @unique
+  order         Order   @relation(fields: [orderId], references: [id])
+  courierId     String?
+  courier       Courier? @relation(fields: [courierId], references: [id])
+  assignedAt    DateTime?
+  pickupAt      DateTime?
+  deliveredAt   DateTime?
+  distanceKm    Float?
+  payoutToCourier Float  @default(0)
+}
+
+model CourierLocation {
+  id        String   @id @default(cuid())
+  courierId String
+  courier   Courier  @relation(fields: [courierId], references: [id])
+  at        DateTime @default(now())
+  lat       Float
+  lng       Float
+}
+
+model PayoutReport {
+  id               String   @id @default(cuid())
+  merchantId       String
+  merchant         Merchant @relation(fields: [merchantId], references: [id])
+  forDate          DateTime
+  totalDeliveries  Int
+  deliveryFeeMode  String
+  deliveryFeeNumeric Float
+  totalAmountDue   Float
+  generatedAt      DateTime @default(now())
+}
