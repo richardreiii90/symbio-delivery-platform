@@ -1,24 +1,106 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [userType, setUserType] = useState("customer")
+  const router = useRouter()
+  const { toast } = useToast()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // TODO: Implement authentication logic
-    setTimeout(() => setIsLoading(false), 1000)
+
+    const formData = new FormData(e.target as HTMLFormElement)
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({ title: "¡Bienvenido!", description: `Sesión iniciada como ${result.user.name}` })
+
+        // Redirigir según tipo de usuario
+        if (result.user.userType === "business") {
+          router.push("/business")
+        } else if (result.user.userType === "driver") {
+          router.push("/driver")
+        } else if (result.user.userType === "admin") {
+          router.push("/admin")
+        } else {
+          router.push("/")
+        }
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" })
+      }
+    } catch (error) {
+      console.error("[v0] Login error:", error)
+      toast({ title: "Error", description: "Error al iniciar sesión", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    const formData = new FormData(e.target as HTMLFormElement)
+    const name = formData.get("name") as string
+    const email = formData.get("email") as string
+    const phone = formData.get("phone") as string
+    const password = formData.get("password") as string
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, phone, password, userType }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({ title: "¡Cuenta creada!", description: `Bienvenido ${result.user.name}` })
+
+        // Redirigir según tipo de usuario
+        if (result.user.userType === "business") {
+          router.push("/business")
+        } else if (result.user.userType === "driver") {
+          router.push("/driver")
+        } else if (result.user.userType === "admin") {
+          router.push("/admin")
+        } else {
+          router.push("/")
+        }
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" })
+      }
+    } catch (error) {
+      console.error("[v0] Register error:", error)
+      toast({ title: "Error", description: "Error al crear cuenta", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -39,7 +121,7 @@ export default function AuthPage() {
               <span className="text-primary-foreground font-bold text-xl">D</span>
             </div>
             <CardTitle>Bienvenido a DeliveryApp</CardTitle>
-            <CardDescription>Inicia sesión o crea una cuenta para comenzar a pedir</CardDescription>
+            <CardDescription>Inicia sesión o crea una cuenta para comenzar</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
@@ -49,14 +131,14 @@ export default function AuthPage() {
               </TabsList>
 
               <TabsContent value="login">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="tu@email.com" required />
+                    <Input id="email" name="email" type="email" placeholder="tu@email.com" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Contraseña</Label>
-                    <Input id="password" type="password" placeholder="••••••••" required />
+                    <Input id="password" name="password" type="password" placeholder="••••••••" required />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
@@ -65,22 +147,37 @@ export default function AuthPage() {
               </TabsContent>
 
               <TabsContent value="register">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="userType">Tipo de cuenta</Label>
+                    <Select value={userType} onValueChange={setUserType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona tipo de cuenta" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="customer">Cliente</SelectItem>
+                        <SelectItem value="business">Comercio/Tienda</SelectItem>
+                        <SelectItem value="driver">Repartidor</SelectItem>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="name">Nombre completo</Label>
-                    <Input id="name" type="text" placeholder="Tu nombre" required />
+                    <Input id="name" name="name" type="text" placeholder="Tu nombre" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email-register">Email</Label>
-                    <Input id="email-register" type="email" placeholder="tu@email.com" required />
+                    <Input id="email-register" name="email" type="email" placeholder="tu@email.com" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Teléfono</Label>
-                    <Input id="phone" type="tel" placeholder="+1234567890" required />
+                    <Input id="phone" name="phone" type="tel" placeholder="+1234567890" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password-register">Contraseña</Label>
-                    <Input id="password-register" type="password" placeholder="••••••••" required />
+                    <Input id="password-register" name="password" type="password" placeholder="••••••••" required />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Creando cuenta..." : "Crear Cuenta"}

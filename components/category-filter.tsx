@@ -24,7 +24,11 @@ export function CategoryFilter() {
         <Badge
           key={category}
           variant={selectedCategory === category ? "default" : "outline"}
-          className="cursor-pointer whitespace-nowrap"
+          className={`cursor-pointer whitespace-nowrap ${
+            selectedCategory === category
+              ? "bg-orange-500 text-white border-orange-500"
+              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+          }`}
           onClick={() => setSelectedCategory(category)}
         >
           {category}

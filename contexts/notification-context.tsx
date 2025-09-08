@@ -2,7 +2,15 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
-import type { Notification } from "@/lib/notifications"
+
+interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string
+  timestamp: Date
+  read: boolean
+}
 
 interface NotificationContextType {
   notifications: Notification[]
@@ -25,67 +33,74 @@ export function NotificationProvider({ children, userId, userType }: Notificatio
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null)
 
-  // Inicializar AudioContext para sonidos
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-      setAudioContext(ctx)
-    }
-  }, [])
-
-  // Función para reproducir sonido de notificación
-  const playSound = useCallback(() => {
-    if (!audioContext) return
-
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
-
-    oscillator.connect(gainNode)
-    gainNode.connect(audioContext.destination)
-
-    oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
-    oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1)
-
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-
-    oscillator.start(audioContext.currentTime)
-    oscillator.stop(audioContext.currentTime + 0.5)
-  }, [audioContext])
-
-  // Conectar a Server-Sent Events
-  useEffect(() => {
-    const eventSource = new EventSource(`/api/notifications/${userType}/${userId}`)
-
-    eventSource.onmessage = (event) => {
+  const initAudioContext = useCallback(() => {
+    if (typeof window !== "undefined" && !audioContext) {
       try {
-        const data = JSON.parse(event.data)
-        if (data.type === "connected") return
-
-        const notification = data as Notification
-        setNotifications((prev) => [notification, ...prev])
-
-        // Reproducir sonido para nuevas notificaciones
-        if (!notification.read) {
-          playSound()
-        }
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        setAudioContext(ctx)
+        return ctx
       } catch (error) {
-        console.error("Error parsing notification:", error)
+        console.log("[v0] AudioContext not available")
+        return null
       }
     }
+    return audioContext
+  }, [audioContext])
 
-    eventSource.onerror = (error) => {
-      console.error("SSE error:", error)
+  const playSound = useCallback(() => {
+    const ctx = initAudioContext()
+    if (!ctx) return
+
+    try {
+      const oscillator = ctx.createOscillator()
+      const gainNode = ctx.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(ctx.destination)
+
+      oscillator.frequency.setValueAtTime(800, ctx.currentTime)
+      oscillator.frequency.setValueAtTime(600, ctx.currentTime + 0.1)
+
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+
+      oscillator.start(ctx.currentTime)
+      oscillator.stop(ctx.currentTime + 0.5)
+    } catch (error) {
+      console.log("[v0] Error playing notification sound")
     }
+  }, [initAudioContext])
 
-    return () => {
-      eventSource.close()
+  useEffect(() => {
+    // Simular notificaciones para comercios cuando hay nuevos pedidos
+    if (userType === "business") {
+      const interval = setInterval(() => {
+        // Solo agregar notificación si hay menos de 3 para no saturar
+        if (notifications.length < 3) {
+          const mockNotification: Notification = {
+            id: Date.now().toString(),
+            type: "order_created",
+            title: "Nuevo Pedido",
+            message: `Pedido #${Math.floor(Math.random() * 1000)} recibido`,
+            timestamp: new Date(),
+            read: false,
+          }
+          setNotifications((prev) => [mockNotification, ...prev])
+          playSound()
+        }
+      }, 30000) // Cada 30 segundos
+
+      return () => clearInterval(interval)
     }
-  }, [userId, userType, playSound])
+  }, [userType, notifications.length, playSound])
 
-  const addNotification = useCallback((notification: Notification) => {
-    setNotifications((prev) => [notification, ...prev])
-  }, [])
+  const addNotification = useCallback(
+    (notification: Notification) => {
+      setNotifications((prev) => [notification, ...prev])
+      playSound()
+    },
+    [playSound],
+  )
 
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
