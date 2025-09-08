@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Clock, CheckCircle, X, Eye, MapPin, Phone } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { useNotifications } from "@/contexts/notification-context"
+// import { useNotifications } from "@/contexts/notification-context"
 
 // Mock orders data
 const mockOrders = [
@@ -66,14 +66,14 @@ const statusConfig = {
 
 export function OrdersManagement() {
   const [orders, setOrders] = useState(mockOrders)
-  const { playSound } = useNotifications()
+  // const { playSound } = useNotifications()
 
-  useEffect(() => {
-    const pendingCount = orders.filter((order) => order.status === "pending").length
-    if (pendingCount > 0) {
-      playSound()
-    }
-  }, [orders, playSound])
+  // useEffect(() => {
+  //   const pendingCount = orders.filter((order) => order.status === "pending").length
+  //   if (pendingCount > 0) {
+  //     playSound()
+  //   }
+  // }, [orders, playSound])
 
   const handleAcceptOrder = async (orderId: string) => {
     setOrders(orders.map((order) => (order.id === orderId ? { ...order, status: "accepted" } : order)))

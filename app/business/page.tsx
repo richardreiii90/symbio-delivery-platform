@@ -1,3 +1,5 @@
+"use client"
+
 import { Suspense } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -8,9 +10,19 @@ import { BusinessStats } from "@/components/business/business-stats"
 import { NotificationSound } from "@/components/business/notification-sound"
 import { NotificationBell } from "@/components/notification-bell"
 import { Badge } from "@/components/ui/badge"
-import { Store, Menu, Settings, BarChart3 } from "lucide-react"
+import { Store, Menu, Settings, BarChart3, LogOut } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export default function BusinessDashboard() {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      window.location.href = "/auth"
+    } catch (error) {
+      console.error("Error logging out:", error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -29,6 +41,10 @@ export default function BusinessDashboard() {
             <div className="flex items-center gap-2">
               <Badge className="bg-delivery-success text-white">Abierto</Badge>
               <NotificationBell />
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Cerrar Sesión
+              </Button>
             </div>
           </div>
         </div>

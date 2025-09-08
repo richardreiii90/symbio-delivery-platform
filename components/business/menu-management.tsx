@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Plus, Edit, Trash2 } from "lucide-react"
 import Image from "next/image"
+import { useToast } from "@/hooks/use-toast"
 
 // Mock menu data
 const mockMenuItems = [
@@ -75,6 +76,7 @@ export function MenuManagement() {
   const [selectedCategory, setSelectedCategory] = useState("Todos")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
+  const { toast } = useToast()
 
   const filteredItems =
     selectedCategory === "Todos" ? menuItems : menuItems.filter((item) => item.category === selectedCategory)
@@ -85,8 +87,38 @@ export function MenuManagement() {
     )
   }
 
-  const handleDeleteItem = (itemId: string) => {
-    setMenuItems((items) => items.filter((item) => item.id !== itemId))
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      setMenuItems((items) => items.filter((item) => item.id !== itemId))
+      toast({
+        title: "Producto eliminado",
+        description: "El producto ha sido eliminado del menú exitosamente.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el producto. Intenta nuevamente.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleUpdateItem = async (updatedItem: any, itemId: string) => {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      setMenuItems((items) => items.map((i) => (i.id === itemId ? { ...updatedItem, id: itemId } : i)))
+      toast({
+        title: "PRODUCTO ACTUALIZADO",
+        description: "Los cambios han sido guardados exitosamente.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el producto. Intenta nuevamente.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -198,15 +230,21 @@ export function MenuManagement() {
                           item={item}
                           onClose={() => setEditingItem(null)}
                           onSave={(updatedItem) => {
-                            setMenuItems((items) =>
-                              items.map((i) => (i.id === item.id ? { ...updatedItem, id: item.id } : i)),
-                            )
+                            handleUpdateItem(updatedItem, item.id)
                             setEditingItem(null)
                           }}
                         />
                       </DialogContent>
                     </Dialog>
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteItem(item.id)}>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (window.confirm("¿Estás seguro de que quieres eliminar este producto?")) {
+                          handleDeleteItem(item.id)
+                        }
+                      }}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [userType, setUserType] = useState("customer")
+  const [showMasterKey, setShowMasterKey] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -27,6 +28,8 @@ export default function AuthPage() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
+    console.log("[v0] Frontend: Intentando login con email:", email)
+
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -35,26 +38,46 @@ export default function AuthPage() {
       })
 
       const result = await response.json()
+      console.log("[v0] Frontend: Respuesta del servidor:", result)
 
       if (result.success) {
-        toast({ title: "¡Bienvenido!", description: `Sesión iniciada como ${result.user.name}` })
+        localStorage.setItem("user", JSON.stringify(result.user))
 
-        // Redirigir según tipo de usuario
-        if (result.user.userType === "business") {
-          router.push("/business")
-        } else if (result.user.userType === "driver") {
-          router.push("/driver")
-        } else if (result.user.userType === "admin") {
-          router.push("/admin")
-        } else {
-          router.push("/")
-        }
+        toast({
+          title: "¡Bienvenido!",
+          description: `Sesión iniciada como ${result.user.name}`,
+          duration: 3000,
+        })
+
+        setTimeout(() => {
+          // Redirigir según tipo de usuario
+          if (result.user.userType === "business") {
+            router.push("/business")
+          } else if (result.user.userType === "driver") {
+            router.push("/driver")
+          } else if (result.user.userType === "admin") {
+            router.push("/admin")
+          } else {
+            router.push("/")
+          }
+        }, 1000)
       } else {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
+        console.log("[v0] Frontend: Error de login:", result.error)
+        toast({
+          title: "Error de inicio de sesión",
+          description: result.error || "Credenciales incorrectas",
+          variant: "destructive",
+          duration: 5000,
+        })
       }
     } catch (error) {
-      console.error("[v0] Login error:", error)
-      toast({ title: "Error", description: "Error al iniciar sesión", variant: "destructive" })
+      console.error("[v0] Frontend: Login error:", error)
+      toast({
+        title: "Error de conexión",
+        description: "No se pudo conectar con el servidor",
+        variant: "destructive",
+        duration: 5000,
+      })
     } finally {
       setIsLoading(false)
     }
@@ -69,17 +92,20 @@ export default function AuthPage() {
     const email = formData.get("email") as string
     const phone = formData.get("phone") as string
     const password = formData.get("password") as string
+    const masterKey = formData.get("masterKey") as string
 
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password, userType }),
+        body: JSON.stringify({ name, email, phone, password, userType, masterKey }),
       })
 
       const result = await response.json()
 
       if (result.success) {
+        localStorage.setItem("user", JSON.stringify(result.user))
+
         toast({ title: "¡Cuenta creada!", description: `Bienvenido ${result.user.name}` })
 
         // Redirigir según tipo de usuario
@@ -93,14 +119,27 @@ export default function AuthPage() {
           router.push("/")
         }
       } else {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
+        toast({
+          title: "Error al crear cuenta",
+          description: result.error || "No se pudo crear la cuenta. Intenta nuevamente.",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("[v0] Register error:", error)
-      toast({ title: "Error", description: "Error al crear cuenta", variant: "destructive" })
+      toast({
+        title: "Error de conexión",
+        description: "No se pudo conectar con el servidor. Verifica tu conexión.",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleUserTypeChange = (value: string) => {
+    setUserType(value)
+    setShowMasterKey(value === "admin")
   }
 
   return (
@@ -150,7 +189,7 @@ export default function AuthPage() {
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="userType">Tipo de cuenta</Label>
-                    <Select value={userType} onValueChange={setUserType}>
+                    <Select value={userType} onValueChange={handleUserTypeChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona tipo de cuenta" />
                       </SelectTrigger>
@@ -162,6 +201,22 @@ export default function AuthPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {showMasterKey && (
+                    <div className="space-y-2">
+                      <Label htmlFor="masterKey">Llave Maestra</Label>
+                      <Input
+                        id="masterKey"
+                        name="masterKey"
+                        type="password"
+                        placeholder="Llave maestra requerida"
+                        required
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Se requiere llave maestra para crear cuentas de administrador
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="name">Nombre completo</Label>
